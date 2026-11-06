@@ -114,3 +114,62 @@ def test_double_failure(broken_teardown):
         "call": "AssertionError",
         "teardown": "RuntimeError"
     }    
+
+
+def test_custom_report_path(pytester):
+    project_root = Path(__file__).resolve().parents[1]
+
+    # Copy the reporting plugin into the temporary project.
+    shutil.copytree(
+        project_root / "reporting",
+        pytester.path / "reporting",
+    )
+
+    # Register our plugin.
+    pytester.makeconftest(
+        'pytest_plugins = ["reporting.reporter"]'
+    )
+
+    # Create one simple passing test.
+    pytester.makepyfile(
+        test_example="""
+def test_success():
+    assert 10 + 20 == 30
+"""
+    )
+
+    # Run pytest with our custom command-line option.
+    result = pytester.runpytest(
+        "--report-json=custom-reports/results.json",
+        "-v",
+        "-p", "no:playwright",
+    )
+
+    result.assert_outcomes(passed=1)
+
+    # Verify the report was created at the requested location.
+    report_path = (
+        pytester.path
+        / "custom-reports"
+        / "results.json"
+    )
+
+    assert report_path.exists()
+
+    # Verify that the report contains the expected results.
+    report = json.loads(
+        report_path.read_text(encoding="utf-8")
+    )
+
+    assert report["summary"]["total"] == 1
+    assert report["summary"]["passed"] == 1
+    assert report["summary"]["failed"] == 0
+
+    # Verify the default report was not created.
+    default_report = (
+        pytester.path
+        / "test-results"
+        / "report.json"
+    )
+
+    assert not default_report.exists()

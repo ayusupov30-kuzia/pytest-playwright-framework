@@ -105,7 +105,9 @@ def pytest_sessionfinish(session, exitstatus):
         "tests": tests,
     }
 
-    report_path = Path("test-results/report.json")
+    report_path = Path(
+        session.config.getoption("--report-json")
+    )    
     report_path.parent.mkdir(parents=True, exist_ok=True)
 
     report_path.write_text(
@@ -127,3 +129,11 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config):
 
     for key, value in summary.items():
         terminalreporter.write_line(f"{key}: {value}")
+
+def pytest_addoption(parser):
+    parser.addoption(
+        "--report-json",
+        action="store",
+        default="test-results/report.json",
+        help="Path to the JSON test report"
+    )
